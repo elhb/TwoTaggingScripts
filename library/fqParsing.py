@@ -243,11 +243,12 @@ class readpair():
 				elif primermissmatch:
 					mindist = [10000,-1]
 					for i in range(len(read.seq)):
+						if i < 8: continue
 						if len(read.seq)-i > len(primer.seq):
 							dist = matchfunk(primer.seq,read.seq[i:i+len(primer.seq)])
 						else: dist = 1000
 						if dist < mindist[0]: mindist =[dist,i]
-						if i > 16: break
+						if i > 8: break
 					if mindist[0] <= primermissmatch:
 						i = mindist[1]
 						primer.missmatch = mindist[0]

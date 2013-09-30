@@ -6,38 +6,123 @@ r1 = sys.argv[1]
 r2 = sys.argv[2]
 primermissmatch = int(sys.argv[3])
 tagmissmatch = int(sys.argv[4])
+outbase = sys.argv[5]
+plateid = sys.argv[6]
 if tagmissmatch >= 2: sys.stderr.write('WARNING: allowing more than one tagg missmatch may give hits to multiple tags.\n')
 
 pairs = getPairs(r1,r2)
 
-tagcombos = {}
-effectivelength = {}
-
-paircounter = 0
-oks = 0
-for pair in pairs:
-    paircounter+=1
+def foreachPair(pair):
     pair.matchPrimers(primermissmatch=primermissmatch,tagmissmatch=tagmissmatch)
+    return pair
+
+import multiprocessing
+WorkerPool = multiprocessing.Pool(multiprocessing.cpu_count(),maxtasksperchild=10000)
+results = WorkerPool.imap_unordered(foreachPair,pairs,chunksize=1000)
+
+tagcombos = {}
+badcombos = {}
+effectivelength = {}
+paircounter = 0
+godcombo = 0
+bothprimers_found = 0
+pairsbycombo = {}
+missingprimerpairs = []
+ampdirection = {}
+
+#for pair in pairs:
+for pair in results:
+    paircounter+=1
+    #pair = foreachPair(pair)
     
     if pair.fwdPrimer.read and pair.revPrimer.read:
+        bothprimers_found += 1
+
+        if pair.fwdPrimer.read == pair.r1: fwd = 'r1'
+        elif pair.fwdPrimer.read == pair.r2:fwd = 'r2'
+        if pair.revPrimer.read == pair.r1:rev = 'r1'
+        elif pair.revPrimer.read == pair.r2:rev = 'r2'
+        try: ampdirection[fwd+'->'+rev] += 1
+        except KeyError:ampdirection[fwd+'->'+rev] = 1
+
+        combo = 'fwd='+str(pair.fwdWell)+'.rev='+str(pair.revWell)
+        if pair.fwdWell==pair.revWell: combo = str(pair.fwdWell)
+        try: pairsbycombo[combo].append(pair)
+        except KeyError: pairsbycombo[combo]=[pair]
+        
         if pair.fwdWell==pair.revWell:
-            oks += 1
+            combo = str(pair.fwdWell)
+            if not pair.fwdWell: combo = 'BAD_COMBO'
+            else:godcombo += 1
             try: effectivelength[pair.effectivelength] += 1
             except KeyError: effectivelength[pair.effectivelength] = 1
-        try: tagcombos[str(pair.fwdWell)+'\t'+str(pair.revWell)] += 1
-        except KeyError: tagcombos[str(pair.fwdWell)+'\t'+str(pair.revWell)] = 1
-    
-    if paircounter == 10000:break
+            try: tagcombos[combo] += 1
+            except KeyError: tagcombos[combo] = 1
+        else:
+            combo = str(pair.fwdWell)+'\t'+str(pair.revWell)
+            try: badcombos[combo] += 1
+            except KeyError: badcombos[combo] = 1
+            combo = 'BAD_COMBO'
+            try: tagcombos[combo] += 1
+            except KeyError: tagcombos[combo] = 1
+    else: missingprimerpairs.append(pair)
+
+#    if paircounter == 8000:break
 
 import operator
-print 'combos'
-tmp = 0
+combosout = open(outbase+'/'+plateid+'.combos.tsv','w')
+combosout.write( '#well\tcount\n')
 for combo, count in sorted(tagcombos.iteritems(), key=operator.itemgetter(1))[::-1]:#tagcombos.iteritems():
-    tmp +=1
-    print combo +'\t'+str(count)
-    if tmp == 100:break
-print 'effective lengths'
-for key, count in sorted(effectivelength.iteritems(), key=operator.itemgetter(0)):#tagcombos.iteritems():
-    print str(key) +'\t'+str(count)
-print str(oks)+' oks out of '+str(paircounter)+' total'
+    combosout.write( combo +'\t'+str(count)+'\n')
+combosout.close()
 
+badcombosout = open(outbase+'/'+plateid+'.badcombos.tsv','w')
+badcombosout.write( '#fwd\trev\tcount\n')
+for combo, count in sorted(badcombos.iteritems(), key=operator.itemgetter(1))[::-1]:#tagcombos.iteritems():
+    badcombosout.write( combo +'\t'+str(count)+'\n')
+badcombosout.close()
+
+lengthout = open(outbase+'/'+plateid+'.effective_lengths.tsv','w')
+lengthout.write( '#readlength\tcount\n')
+for key, count in sorted(effectivelength.iteritems(), key=operator.itemgetter(0)):#tagcombos.iteritems():
+    lengthout.write( str(key) +'\t'+str(count)+'\n')
+lengthout.close()
+
+print '#fwd->rev direction:'
+for key, count in sorted(ampdirection.iteritems(), key=operator.itemgetter(0)):#tagcombos.iteritems():
+    print str(key) +'\t'+str(count)
+print '#some stats:'
+print str(bothprimers_found)+' pairs with both primers found out of '+str(paircounter)+' total pairs'
+print str(godcombo)+' good tag combos out of '+str(paircounter)+' total pairs'
+
+print 'printing to outfiles ...'
+import os
+try:os.mkdir(outbase+'/'+plateid+'.reads')
+except OSError: pass
+try:os.mkdir(outbase+'/'+plateid+'.reads/expected')
+except OSError: pass
+try:os.mkdir(outbase+'/'+plateid+'.reads/non-expected')
+except OSError: pass    
+import re
+for combo, pairs in pairsbycombo.iteritems():
+    if re.match('[ABCDEFGH][123456789][0123456789]?',combo):
+        outr1 = open(outbase+'/'+plateid+'.reads/expected'+'/'+plateid+'.'+combo+'.R1.fq','w')
+        outr2 = open(outbase+'/'+plateid+'.reads/expected'+'/'+plateid+'.'+combo+'.R2.fq','w')
+    elif re.match('(fwd=.{2,5}\.rev=.{2,5})|(None)',combo):
+        outr1 = open(outbase+'/'+plateid+'.reads/non-expected'+'/'+plateid+'.'+combo+'.R1.fq','w')
+        outr2 = open(outbase+'/'+plateid+'.reads/non-expected'+'/'+plateid+'.'+combo+'.R2.fq','w')
+    for pair in pairs:
+        outr1.write(pair.header+'\n'+pair.r1.seq+'\n+\n'+pair.r1.qual+'\n')
+        outr2.write(pair.header+'\n'+pair.r2.seq+'\n+\n'+pair.r2.qual+'\n')
+    outr1.close()
+    outr2.close()
+print 'combos done, now missing primers'
+combo = 'missingprimer'
+outr1 = open(outbase+'/'+plateid+'.reads'+'/'+plateid+'.'+combo+'.R1.fq','w')
+outr2 = open(outbase+'/'+plateid+'.reads'+'/'+plateid+'.'+combo+'.R2.fq','w')
+for pair in missingprimerpairs:
+    outr1.write(pair.header+'\n'+pair.r1.seq+'\n+\n'+pair.r1.qual+'\n')
+    outr2.write(pair.header+'\n'+pair.r2.seq+'\n+\n'+pair.r2.qual+'\n')
+outr1.close()
+outr2.close()
+print 'done'

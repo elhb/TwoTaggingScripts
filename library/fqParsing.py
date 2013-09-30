@@ -219,7 +219,7 @@ class readpair():
 		else:	self.isillumina = False
 		return 0
 
-	def matchPrimers(self, matchfunk=hamming_distance, missmatch=0):
+	def matchPrimers(self, matchfunk=hamming_distance, primermissmatch=0,tagmissmatch=0):
 
 		self.fwdPrimer.read	= None
 		self.fwdPrimer.start	= None
@@ -238,31 +238,153 @@ class readpair():
 				    primer.start = perfect_match.start()
 				    primer.end = perfect_match.end()
 				    primer.read = read
+				    primer.missmatch = 0
 				    break
-				elif missmatch:
+				elif primermissmatch:
 					mindist = [10000,-1]
 					for i in range(len(read.seq)):
 						if len(read.seq)-i > len(primer.seq):
 							dist = matchfunk(primer.seq,read.seq[i:i+len(primer.seq)])
 						else: dist = 1000
 						if dist < mindist[0]: mindist =[dist,i]
-		
-					if mindist[0] <= missmatch:
+						if i > 16: break
+					if mindist[0] <= primermissmatch:
 						i = mindist[1]
+						primer.missmatch = mindist[0]
 						primer.start = i
 						primer.end = i+len(primer.seq)
 						primer.read = read
+		
 		if self.fwdPrimer.read:
-			self.fwdTag = self.fwdPrimer.read.seq[:self.fwdPrimer.start]
-			if len(self.fwdTag) > 8: self.fwdTag = '>8bp'
-			elif len(self.fwdTag)<8: self.fwdTag = '<8bp'
+			self.fwdTagSeq = self.fwdPrimer.read.seq[:self.fwdPrimer.start]
+			self.fwdWell = None
+			if len(self.fwdTagSeq) > 8: self.fwdTagSeq = '>8bp'
+			elif len(self.fwdTagSeq)<8: self.fwdTagSeq = '<8bp'
+			else:
+				try: self.fwdWell = tags[self.fwdTagSeq]
+				except KeyError:
+					for tag in tags:
+						dist = hamming_distance(tag,self.fwdTagSeq)
+						if dist <= tagmissmatch:
+							self.fwdTagmissmatch = dist
+							self.fwdWell = tags[tag]
+							break
 		if self.revPrimer.read:
-			self.revTag = self.revPrimer.read.seq[:self.revPrimer.start]
-			if len(self.revTag) > 8: self.revTag = '>8bp'
-			elif len(self.revTag)<8: self.revTag = '<8bp'
-
+			self.revTagSeq = self.revPrimer.read.seq[:self.revPrimer.start]
+			self.revWell = None
+			if len(self.revTagSeq) > 8: self.revTagSeq = '>8bp'
+			elif len(self.revTagSeq)<8: self.revTagSeq = '<8bp'
+			else:
+				try: self.revWell = tags[self.revTagSeq]
+				except KeyError:
+					for tag in tags:
+						dist = hamming_distance(tag,self.revTagSeq)
+						if dist <= tagmissmatch:
+							self.revTagmissmatch = dist
+							self.revWell = tags[tag]
+							break
+		if self.fwdPrimer.read and self.revPrimer.read: self.effectivelength = len(self.revPrimer.read.seq[self.revPrimer.end:])+len(self.fwdPrimer.read.seq[self.fwdPrimer.end:])
+		else:self.effectivelength = 0
 		return 0
 
+tags = {
+    'TCTCTGTG':'A1',
+    'TGTACGTG':'A2',
+    'ATCGTCTG':'A3',
+    'TAGCTCTG':'A4',
+    'AGTATCTG':'A5',
+    'TCGAGCTG':'A6',
+    'TCATACTG':'A7',
+    'TACGACTG':'A8',
+    'ACTCACTG':'A9',
+    'AGAGTATG':'A10',
+    'AGCTGATG':'A11',
+    'TATCGATG':'A12',
+    'ATGCGATG':'B1',
+    'ACGTCATG':'B2',
+    'TCATGTCG':'B3',
+    'TAGCGTCG':'B4',
+    'TCTACTCG':'B5',
+    'ATGACTCG':'B6',
+    'ATCTATCG':'B7',
+    'ACAGATCG':'B8',
+    'ATACTGCG':'B9',
+    'TATATGCG':'B10',
+    'TGCTCGCG':'B11',
+    'ATCGCGCG':'B12',
+    'TAGTAGCG':'C1',
+    'AGATAGCG':'C2',
+    'TGTGAGCG':'C3',
+    'TCACAGCG':'C4',
+    'ACTGTACG':'C5',
+    'TGCGTACG':'C6',
+    'TCGCTACG':'C7',
+    'TACTGACG':'C8',
+    'AGACGACG':'C9',
+    'TGTAGACG':'C10',
+    'ACGAGACG':'C11',
+    'ATATCACG':'C12',
+    'TCAGCACG':'D1',
+    'TAGACACG':'D2',
+    'AGCACACG':'D3',
+    'ATGTGTAG':'D4',
+    'ACTCGTAG':'D5',
+    'TGCAGTAG':'D6',
+    'TGATCTAG':'D7',
+    'TACGCTAG':'D8',
+    'TCGTATAG':'D9',
+    'AGACATAG':'D10',
+    'AGCGTGAG':'D11',
+    'ATGATGAG':'D12',
+    'ACATCGAG':'E1',
+    'TCTGCGAG':'E2',
+    'ATAGAGAG':'E3',
+    'TATCAGAG':'E4',
+    'ACGCAGAG':'E5',
+    'ACAGTCAG':'E6',
+    'TCTATCAG':'E7',
+    'TAGTGCAG':'E8',
+    'TGACGCAG':'E9',
+    'ATCAGCAG':'E10',
+    'TGCTACAG':'E11',
+    'AGTGACAG':'E12',
+    'ACTGTGTC':'F1',
+    'TACATGTC':'F2',
+    'ATGACGTC':'F3',
+    'AGCGAGTC':'F4',
+    'TCGCAGTC':'F5',
+    'ATACAGTC':'F6',
+    'TGCGTCTC':'F7',
+    'TCACTCTC':'F8',
+    'ATCTGCTC':'F9',
+    'TGTAGCTC':'F10',
+    'ACGTACTC':'F11',
+    'TCTGACTC':'F12',
+    'ACGCTATC':'G1',
+    'ATCATATC':'G2',
+    'TCGTGATC':'G3',
+    'TGACGATC':'G4',
+    'TGCTCATC':'G5',
+    'TATGCATC':'G6',
+    'ACAGCATC':'G7',
+    'AGTACATC':'G8',
+    'AGTGCTGC':'G9',
+    'TGCGATGC':'G10',
+    'ATGCATGC':'G11',
+    'TCACATGC':'G12',
+    'AGAGTCGC':'H1',
+    'ACTATCGC':'H2',
+    'TAGATCGC':'H3',
+    'TCATGCGC':'H4',
+    'TACTACGC':'H5',
+    'ATATACGC':'H6',
+    'TGTCACGC':'H7',
+    'AGTCTAGC':'H8',
+    'ATGTGAGC':'H9',
+    'TAGCGAGC':'H10',
+    'ACACGAGC':'H11',
+    'TCTAGAGC':'H12'
+    }
 
 if __name__ == "__main__": lib_main()
 

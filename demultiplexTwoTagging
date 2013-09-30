@@ -4,141 +4,40 @@ from library.fqParsing import *
 import sys
 r1 = sys.argv[1]
 r2 = sys.argv[2]
-primermismmatch = 0
-tagmissmatch = 0
-
-tags = {
-    'TCTCTGTG':'A1',
-    'TGTACGTG':'A2',
-    'ATCGTCTG':'A3',
-    'TAGCTCTG':'A4',
-    'AGTATCTG':'A5',
-    'TCGAGCTG':'A6',
-    'TCATACTG':'A7',
-    'TACGACTG':'A8',
-    'ACTCACTG':'A9',
-    'AGAGTATG':'A10',
-    'AGCTGATG':'A11',
-    'TATCGATG':'A12',
-    'ATGCGATG':'B1',
-    'ACGTCATG':'B2',
-    'TCATGTCG':'B3',
-    'TAGCGTCG':'B4',
-    'TCTACTCG':'B5',
-    'ATGACTCG':'B6',
-    'ATCTATCG':'B7',
-    'ACAGATCG':'B8',
-    'ATACTGCG':'B9',
-    'TATATGCG':'B10',
-    'TGCTCGCG':'B11',
-    'ATCGCGCG':'B12',
-    'TAGTAGCG':'C1',
-    'AGATAGCG':'C2',
-    'TGTGAGCG':'C3',
-    'TCACAGCG':'C4',
-    'ACTGTACG':'C5',
-    'TGCGTACG':'C6',
-    'TCGCTACG':'C7',
-    'TACTGACG':'C8',
-    'AGACGACG':'C9',
-    'TGTAGACG':'C10',
-    'ACGAGACG':'C11',
-    'ATATCACG':'C12',
-    'TCAGCACG':'D1',
-    'TAGACACG':'D2',
-    'AGCACACG':'D3',
-    'ATGTGTAG':'D4',
-    'ACTCGTAG':'D5',
-    'TGCAGTAG':'D6',
-    'TGATCTAG':'D7',
-    'TACGCTAG':'D8',
-    'TCGTATAG':'D9',
-    'AGACATAG':'D10',
-    'AGCGTGAG':'D11',
-    'ATGATGAG':'D12',
-    'ACATCGAG':'E1',
-    'TCTGCGAG':'E2',
-    'ATAGAGAG':'E3',
-    'TATCAGAG':'E4',
-    'ACGCAGAG':'E5',
-    'ACAGTCAG':'E6',
-    'TCTATCAG':'E7',
-    'TAGTGCAG':'E8',
-    'TGACGCAG':'E9',
-    'ATCAGCAG':'E10',
-    'TGCTACAG':'E11',
-    'AGTGACAG':'E12',
-    'ACTGTGTC':'F1',
-    'TACATGTC':'F2',
-    'ATGACGTC':'F3',
-    'AGCGAGTC':'F4',
-    'TCGCAGTC':'F5',
-    'ATACAGTC':'F6',
-    'TGCGTCTC':'F7',
-    'TCACTCTC':'F8',
-    'ATCTGCTC':'F9',
-    'TGTAGCTC':'F10',
-    'ACGTACTC':'F11',
-    'TCTGACTC':'F12',
-    'ACGCTATC':'G1',
-    'ATCATATC':'G2',
-    'TCGTGATC':'G3',
-    'TGACGATC':'G4',
-    'TGCTCATC':'G5',
-    'TATGCATC':'G6',
-    'ACAGCATC':'G7',
-    'AGTACATC':'G8',
-    'AGTGCTGC':'G9',
-    'TGCGATGC':'G10',
-    'ATGCATGC':'G11',
-    'TCACATGC':'G12',
-    'AGAGTCGC':'H1',
-    'ACTATCGC':'H2',
-    'TAGATCGC':'H3',
-    'TCATGCGC':'H4',
-    'TACTACGC':'H5',
-    'ATATACGC':'H6',
-    'TGTCACGC':'H7',
-    'AGTCTAGC':'H8',
-    'ATGTGAGC':'H9',
-    'TAGCGAGC':'H10',
-    'ACACGAGC':'H11',
-    'TCTAGAGC':'H12'
-    }
+primermissmatch = int(sys.argv[3])
+tagmissmatch = int(sys.argv[4])
+if tagmissmatch >= 2: sys.stderr.write('WARNING: allowing more than one tagg missmatch may give hits to multiple tags.\n')
 
 pairs = getPairs(r1,r2)
 
-for pair in pairs:
-    
-    pair.matchPrimers(missmatch=primermismmatch)
-    print pair.header
-    
-    print 'fwdprimer is:',
-    if pair.fwdPrimer.read == pair.r1: print 'read one',
-    elif pair.fwdPrimer.read == pair.r2:print 'read two',
-    else: print 'not found',
+tagcombos = {}
+effectivelength = {}
 
-    try:
-        print 'tag is ',
-        try: print tags[pair.fwdTag]
-        except KeyError:
-            if len(pair.fwdTag) == 8:
-                for tag in tags:
-                    if hamming_distance(tag,pair.fwdTag) <= tagmissmatch: print tags[tag], '('+str(hamming_distance(tag,pair.fwdTag))+'MM '+tag+')',
-            print pair.fwdTag
-    except AttributeError: print ''
+paircounter = 0
+oks = 0
+for pair in pairs:
+    paircounter+=1
+    pair.matchPrimers(primermissmatch=primermissmatch,tagmissmatch=tagmissmatch)
     
-    print 'revprimer is:',
-    if pair.revPrimer.read == pair.r1: print 'read one',
-    elif pair.revPrimer.read == pair.r2:print 'read two',
-    else: print 'not found',
+    if pair.fwdPrimer.read and pair.revPrimer.read:
+        if pair.fwdWell==pair.revWell:
+            oks += 1
+            try: effectivelength[pair.effectivelength] += 1
+            except KeyError: effectivelength[pair.effectivelength] = 1
+        try: tagcombos[str(pair.fwdWell)+'\t'+str(pair.revWell)] += 1
+        except KeyError: tagcombos[str(pair.fwdWell)+'\t'+str(pair.revWell)] = 1
     
-    try:
-        print 'tag is ',
-        try: print tags[pair.revTag]
-        except KeyError:
-            if len(pair.revTag) == 8:
-                for tag in tags:
-                    if hamming_distance(tag,pair.revTag) <= tagmissmatch: print tags[tag], '('+str(hamming_distance(tag,pair.revTag))+'MM '+tag+')',
-            print pair.revTag
-    except AttributeError: print ''
+    if paircounter == 10000:break
+
+import operator
+print 'combos'
+tmp = 0
+for combo, count in sorted(tagcombos.iteritems(), key=operator.itemgetter(1))[::-1]:#tagcombos.iteritems():
+    tmp +=1
+    print combo +'\t'+str(count)
+    if tmp == 100:break
+print 'effective lengths'
+for key, count in sorted(effectivelength.iteritems(), key=operator.itemgetter(0)):#tagcombos.iteritems():
+    print str(key) +'\t'+str(count)
+print str(oks)+' oks out of '+str(paircounter)+' total'
+

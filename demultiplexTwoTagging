@@ -20,82 +20,102 @@ import multiprocessing
 WorkerPool = multiprocessing.Pool(multiprocessing.cpu_count(),maxtasksperchild=10000)
 results = WorkerPool.imap_unordered(foreachPair,pairs,chunksize=1000)
 
-tagcombos = {}
+goodcombos = {}
 badcombos = {}
+mmscombos = {}
 effectivelength = {}
+ampdirection = {}
 paircounter = 0
-godcombo = 0
+goodcombo = 0
+badcombo = 0
+mmscombo = 0
 bothprimers_found = 0
+missingprimerpair = 0
 pairsbycombo = {}
 missingprimerpairs = []
-ampdirection = {}
 
-#for pair in pairs:
 for pair in results:
     paircounter+=1
-    #pair = foreachPair(pair)
     
     if pair.fwdPrimer.read and pair.revPrimer.read:
         bothprimers_found += 1
 
-        if pair.fwdPrimer.read == pair.r1: fwd = 'r1'
-        elif pair.fwdPrimer.read == pair.r2:fwd = 'r2'
-        if pair.revPrimer.read == pair.r1:rev = 'r1'
-        elif pair.revPrimer.read == pair.r2:rev = 'r2'
-        try: ampdirection[fwd+'->'+rev] += 1
+        if   pair.fwdPrimer.read == pair.r1: fwd = 'r1'
+        elif pair.fwdPrimer.read == pair.r2: fwd = 'r2'
+        if   pair.revPrimer.read == pair.r1: rev = 'r1'
+        elif pair.revPrimer.read == pair.r2: rev = 'r2'
+        try:            ampdirection[fwd+'->'+rev] += 1
         except KeyError:ampdirection[fwd+'->'+rev] = 1
 
         combo = 'fwd='+str(pair.fwdWell)+'.rev='+str(pair.revWell)
         if pair.fwdWell==pair.revWell: combo = str(pair.fwdWell)
-        try: pairsbycombo[combo].append(pair)
+        try:             pairsbycombo[combo].append(pair)
         except KeyError: pairsbycombo[combo]=[pair]
         
-        if pair.fwdWell==pair.revWell:
-            combo = str(pair.fwdWell)
-            if not pair.fwdWell: combo = 'BAD_COMBO'
-            else:godcombo += 1
-            try: effectivelength[pair.effectivelength] += 1
-            except KeyError: effectivelength[pair.effectivelength] = 1
-            try: tagcombos[combo] += 1
-            except KeyError: tagcombos[combo] = 1
-        else:
+        if pair.fwdWell==None or pair.revWell == None:
+            mmscombo += 1
             combo = str(pair.fwdWell)+'\t'+str(pair.revWell)
-            try: badcombos[combo] += 1
+            try:             mmscombos[combo] += 1
+            except KeyError: mmscombos[combo] = 1
+        elif pair.fwdWell==pair.revWell:
+            combo = str(pair.fwdWell)
+            goodcombo += 1
+            try:             effectivelength[pair.effectivelength] += 1
+            except KeyError: effectivelength[pair.effectivelength] = 1
+            try:             goodcombos[combo] += 1
+            except KeyError: goodcombos[combo] = 1
+        else:
+            badcombo += 1
+            combo = str(pair.fwdWell)+'\t'+str(pair.revWell)
+            try:             badcombos[combo] += 1
             except KeyError: badcombos[combo] = 1
-            combo = 'BAD_COMBO'
-            try: tagcombos[combo] += 1
-            except KeyError: tagcombos[combo] = 1
-    else: missingprimerpairs.append(pair)
+    else:
+        missingprimerpairs.append(pair)
+        missingprimerpair += 1
+        
+    #if paircounter == 8000: break
 
-#    if paircounter == 8000:break
+assert mmscombo+goodcombo+badcombo == bothprimers_found, str(mmscombo)+'+'+str(goodcombo)+'+'+str(badcombo)+' != '+str(bothprimers_found)
+assert bothprimers_found+missingprimerpair == paircounter,str(bothprimers_found)+'+'+str(missingprimerpair)+' != '+str(paircounter)
+assert mmscombo == sum([value for value in mmscombos.values()])
+assert badcombo == sum([value for value in badcombos.values()])
+assert goodcombo == sum([value for value in goodcombos.values()])
+assert sum([len(pairs) for pairs in pairsbycombo.values()]) == bothprimers_found, str(len(pairsbycombo))+' != '+str(bothprimers_found)
 
 import operator
 combosout = open(outbase+'/'+plateid+'.combos.tsv','w')
 combosout.write( '#well\tcount\n')
-for combo, count in sorted(tagcombos.iteritems(), key=operator.itemgetter(1))[::-1]:#tagcombos.iteritems():
-    combosout.write( combo +'\t'+str(count)+'\n')
+for combo, count in sorted(goodcombos.iteritems(), key=operator.itemgetter(1))[::-1]: combosout.write( combo +'\t'+str(count)+'\n')
 combosout.close()
 
 badcombosout = open(outbase+'/'+plateid+'.badcombos.tsv','w')
 badcombosout.write( '#fwd\trev\tcount\n')
-for combo, count in sorted(badcombos.iteritems(), key=operator.itemgetter(1))[::-1]:#tagcombos.iteritems():
-    badcombosout.write( combo +'\t'+str(count)+'\n')
+for combo, count in sorted(badcombos.iteritems(), key=operator.itemgetter(1))[::-1]: badcombosout.write( combo +'\t'+str(count)+'\n')
 badcombosout.close()
+
+mmscombosout = open(outbase+'/'+plateid+'.mmscombos.tsv','w')
+mmscombosout.write( '#fwd\trev\tcount\n')
+for combo, count in sorted(mmscombos.iteritems(), key=operator.itemgetter(1))[::-1]: mmscombosout.write( combo +'\t'+str(count)+'\n')
+mmscombosout.close()
 
 lengthout = open(outbase+'/'+plateid+'.effective_lengths.tsv','w')
 lengthout.write( '#readlength\tcount\n')
-for key, count in sorted(effectivelength.iteritems(), key=operator.itemgetter(0)):#tagcombos.iteritems():
-    lengthout.write( str(key) +'\t'+str(count)+'\n')
+for key, count in sorted(effectivelength.iteritems(), key=operator.itemgetter(0)): lengthout.write( str(key) +'\t'+str(count)+'\n')
 lengthout.close()
 
 print '#fwd->rev direction:'
-for key, count in sorted(ampdirection.iteritems(), key=operator.itemgetter(0)):#tagcombos.iteritems():
+for key, count in sorted(ampdirection.iteritems(), key=operator.itemgetter(0)):
     print str(key) +'\t'+str(count)
 print '#some stats:'
-print str(bothprimers_found)+' pairs with both primers found out of '+str(paircounter)+' total pairs'
-print str(godcombo)+' good tag combos out of '+str(paircounter)+' total pairs'
+print str(paircounter)+'\ttotal pairs'
+print str(bothprimers_found)+'\tpairs with both primers found'
+print str(goodcombo)+'\tgood tag combos'
+print str(mmscombo)+'\tmissmatch tag combos'
+print str(badcombo)+'\tbad tag combos'
+print str(missingprimerpair)+'\tpairs with atleast one missing primer'
 
-print 'printing to outfiles ...'
+print '# printing to outfiles ...'
+
 import os
 try:os.mkdir(outbase+'/'+plateid+'.reads')
 except OSError: pass
@@ -103,6 +123,7 @@ try:os.mkdir(outbase+'/'+plateid+'.reads/expected')
 except OSError: pass
 try:os.mkdir(outbase+'/'+plateid+'.reads/non-expected')
 except OSError: pass    
+
 import re
 for combo, pairs in pairsbycombo.iteritems():
     if re.match('[ABCDEFGH][123456789][0123456789]?',combo):
@@ -116,6 +137,7 @@ for combo, pairs in pairsbycombo.iteritems():
         outr2.write(pair.header+'\n'+pair.r2.seq+'\n+\n'+pair.r2.qual+'\n')
     outr1.close()
     outr2.close()
+
 print 'combos done, now missing primers'
 combo = 'missingprimer'
 outr1 = open(outbase+'/'+plateid+'.reads'+'/'+plateid+'.'+combo+'.R1.fq','w')

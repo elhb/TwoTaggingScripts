@@ -112,8 +112,7 @@ lengthout.close()
 
 stats = open(outbase+'/'+plateid+'.stats.tsv','w')
 stats.write(  '#fwd->rev direction:'+'\n')
-for key, count in sorted(ampdirection.iteritems(), key=operator.itemgetter(0)):
-    stats.write(  str(key) +'\t'+str(count)+'\n')
+for key, count in sorted(ampdirection.iteritems(), key=operator.itemgetter(0)): stats.write(  str(key) +'\t'+str(count)+'\n')
 stats.write(  '#some stats:'+'\n')
 stats.write(  str(paircounter)+'\ttotal pairs'+'\n')
 stats.write(  str(bothprimers_found)+'\tpairs with both primers found'+'\n')

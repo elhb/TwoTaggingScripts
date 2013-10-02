@@ -67,7 +67,7 @@ print 'make length dist'
 x = []
 y = []
 import operator
-for key,value in sorted(length.iteritems(), key=operator.itemgetter(1))[::-1]:
+for key,value in sorted(length.iteritems(), key=operator.itemgetter(0))[::-1]:
     x.append(int(key))
     y.append(int(value))
 import numpy as np

@@ -1,0 +1,18 @@
+#! /usr/bin/env python
+
+import matplotlib
+import sys
+
+folder = sys.argv[1]
+sample = sys.argv[2]
+
+stats      = open(folder+'/'+sample+'.stats.tsv')
+goodcombos = open(folder+'/'+sample+'.combos.tsv')
+badcombos  = open(folder+'/'+sample+'.badcombos.tsv')
+mmscombos  = open(folder+'/'+sample+'.mmscombos.tsv')
+length     = open(folder+'/'+sample+'.effective_lengths.tsv')
+
+directions = {}
+
+for line in stats:
+    pass

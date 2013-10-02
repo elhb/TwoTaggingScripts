@@ -2,12 +2,16 @@
 
 from library.fqParsing import *
 import sys
-r1 = sys.argv[1]
-r2 = sys.argv[2]
-primermissmatch = int(sys.argv[3])
-tagmissmatch = int(sys.argv[4])
-outbase = sys.argv[5]
-plateid = sys.argv[6]
+try:
+    r1 = sys.argv[1]
+    r2 = sys.argv[2]
+    primermissmatch = int(sys.argv[3])
+    tagmissmatch = int(sys.argv[4])
+    outbase = sys.argv[5]
+    plateid = sys.argv[6]
+except IndexError:
+    print 'Usage: demultiplexTwoTagging <r1> <r2> <primer mm> <tag mm> <folder> <plateid>'
+    sys.exit()
 logfile = open(outbase+'/'+plateid+'.logfile.txt','w')
 logfile.write('#cmd: '+' '.join(sys.argv)+'\n')
 if tagmissmatch >= 2: logfile.write('WARNING: allowing more than one tagg missmatch may give hits to multiple tags.\n')

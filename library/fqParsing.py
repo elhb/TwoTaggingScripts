@@ -66,8 +66,7 @@ def getPairs(r1,r2):
 				tmp=0 # reset line counter
 				r1qual = r1line.rstrip() #get qual strings
 				r2qual = r2line.rstrip()
-				
-				#yield readpair
+				#if counter == 8000:break
 				yield readpair(header.rstrip(), read(header.rstrip(),r1seq,r1qual), read(header.rstrip(),r2seq,r2qual))
 
 def hamming_distance(s1, s2):

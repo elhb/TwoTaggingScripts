@@ -8,12 +8,15 @@ primermissmatch = int(sys.argv[3])
 tagmissmatch = int(sys.argv[4])
 outbase = sys.argv[5]
 plateid = sys.argv[6]
-if tagmissmatch >= 2: sys.stderr.write('WARNING: allowing more than one tagg missmatch may give hits to multiple tags.\n')
+logfile = open(outbase+'/'+plateid+'.logfile.txt','w')
+logfile.write('#cmd: '+' '.join(sys.argv)+'\n')
+if tagmissmatch >= 2: logfile.write('WARNING: allowing more than one tagg missmatch may give hits to multiple tags.\n')
 
 pairs = getPairs(r1,r2)
 
 def foreachPair(pair):
-    pair.matchPrimers(primermissmatch=primermissmatch,tagmissmatch=tagmissmatch)
+    try: pair.matchPrimers(primermissmatch=primermissmatch,tagmissmatch=tagmissmatch)
+    except TypeError: logfile.write( str(pair) )
     return pair
 
 import multiprocessing
@@ -103,18 +106,20 @@ lengthout.write( '#readlength\tcount\n')
 for key, count in sorted(effectivelength.iteritems(), key=operator.itemgetter(0)): lengthout.write( str(key) +'\t'+str(count)+'\n')
 lengthout.close()
 
-print '#fwd->rev direction:'
+stats = open(outbase+'/'+plateid+'.stats.   tsv','w')
+stats.write(  '#fwd->rev direction:'+'\n')
 for key, count in sorted(ampdirection.iteritems(), key=operator.itemgetter(0)):
-    print str(key) +'\t'+str(count)
-print '#some stats:'
-print str(paircounter)+'\ttotal pairs'
-print str(bothprimers_found)+'\tpairs with both primers found'
-print str(goodcombo)+'\tgood tag combos'
-print str(mmscombo)+'\tmissmatch tag combos'
-print str(badcombo)+'\tbad tag combos'
-print str(missingprimerpair)+'\tpairs with atleast one missing primer'
+    stats.write(  str(key) +'\t'+str(count)+'\n')
+stats.write(  '#some stats:'+'\n')
+stats.write(  str(paircounter)+'\ttotal pairs'+'\n')
+stats.write(  str(bothprimers_found)+'\tpairs with both primers found'+'\n')
+stats.write(  str(goodcombo)+'\tgood tag combos'+'\n')
+stats.write(  str(mmscombo)+'\tmissmatch tag combos'+'\n')
+stats.write(  str(badcombo)+'\tbad tag combos'+'\n')
+stats.write(  str(missingprimerpair)+'\tpairs with atleast one missing primer'+'\n')
+stats.close()
 
-print '# printing to outfiles ...'
+logfile.write( '# printing to outfiles ...\n')
 
 import os
 try:os.mkdir(outbase+'/'+plateid+'.reads')
@@ -138,7 +143,7 @@ for combo, pairs in pairsbycombo.iteritems():
     outr1.close()
     outr2.close()
 
-print 'combos done, now missing primers'
+logfile.write( 'combos done, now missing primers\n')
 combo = 'missingprimer'
 outr1 = open(outbase+'/'+plateid+'.reads'+'/'+plateid+'.'+combo+'.R1.fq','w')
 outr2 = open(outbase+'/'+plateid+'.reads'+'/'+plateid+'.'+combo+'.R2.fq','w')
@@ -147,4 +152,5 @@ for pair in missingprimerpairs:
     outr2.write(pair.header+'\n'+pair.r2.seq+'\n+\n'+pair.r2.qual+'\n')
 outr1.close()
 outr2.close()
-print 'done'
+logfile.write( 'done\n')
+logfile.close()

@@ -20,7 +20,7 @@ pairs = getPairs(r1,r2)
 
 def foreachPair(pair):
     try: pair.matchPrimers(primermissmatch=primermissmatch,tagmissmatch=tagmissmatch)
-    except TypeError: logfile.write( str(pair) )
+    except TypeError: logfile.write( str(pair) );print str(pair);
     return pair
 
 import multiprocessing
@@ -137,14 +137,22 @@ for combo, pairs in pairsbycombo.iteritems():
     if re.match('[ABCDEFGH][123456789][0123456789]?',combo):
         outr1 = open(outbase+'/'+plateid+'.reads/expected'+'/'+plateid+'.'+combo+'.R1.fq','w')
         outr2 = open(outbase+'/'+plateid+'.reads/expected'+'/'+plateid+'.'+combo+'.R2.fq','w')
+        outfwd = open(outbase+'/'+plateid+'.reads/expected'+'/'+plateid+'.'+combo+'.fwd.fq','w')
+        outrev = open(outbase+'/'+plateid+'.reads/expected'+'/'+plateid+'.'+combo+'.rev.fq','w')
     elif re.match('(fwd=.{2,5}\.rev=.{2,5})|(None)',combo):
         outr1 = open(outbase+'/'+plateid+'.reads/non-expected'+'/'+plateid+'.'+combo+'.R1.fq','w')
         outr2 = open(outbase+'/'+plateid+'.reads/non-expected'+'/'+plateid+'.'+combo+'.R2.fq','w')
+        outfwd = open(outbase+'/'+plateid+'.reads/non-expected'+'/'+plateid+'.'+combo+'.fwd.fq','w')
+        outrev = open(outbase+'/'+plateid+'.reads/non-expected'+'/'+plateid+'.'+combo+'.rev.fq','w')
     for pair in pairs:
         outr1.write(pair.header+'\n'+pair.r1.seq+'\n+\n'+pair.r1.qual+'\n')
         outr2.write(pair.header+'\n'+pair.r2.seq+'\n+\n'+pair.r2.qual+'\n')
+        outfwd.write(pair.header+'\n'+pair.fwdPrimer.read.seq+'\n+\n'+pair.fwdPrimer.read.qual+'\n')
+        outrev.write(pair.header+'\n'+pair.revPrimer.read.seq+'\n+\n'+pair.revPrimer.read.qual+'\n')
     outr1.close()
     outr2.close()
+    outfwd.close()
+    outrev.close()
 
 logfile.write( 'combos done, now missing primers\n')
 combo = 'missingprimer'

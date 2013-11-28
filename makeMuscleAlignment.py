@@ -40,7 +40,7 @@ while True:
     f.write('#SBATCH --mail-user=erik.borgstrom@scilifelab.se'+'\n')
     f.write('echo "$(date) Running on: $(hostname)"'+'\n')
     f.write('cd '+os.getcwd()+'\n')
-    f.write('module load muscle/3.8.31'+'\n')
+    f.write('module load bioinfo-tools muscle/3.8.31'+'\n')
     for filename in current_block:f.write('muscle -in '+filename+' -out '+filename+'.aligned -quiet &\n')
     f.write('wait\n')
     f.close()
